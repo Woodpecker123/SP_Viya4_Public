@@ -1,0 +1,58 @@
+#namespace: {{ NAME-OF-NAMESPACE }} 
+resources:
+- sas-bases/base
+- sas-bases/overlays/network/route.openshift.io
+#- site-config/security/openssl-generated-ingress-certificate.yaml 
+- sas-bases/overlays/cas-server
+- sas-bases/overlays/crunchydata/postgres-operator
+- sas-bases/overlays/postgres/platform-postgres
+# If your deployment contains SAS Data Science Programming, comment out the next line
+- sas-bases/overlays/internal-elasticsearch
+- sas-bases/overlays/update-checker
+#- sas-bases/overlays/cas-server/auto-resources 
+configurations:
+- sas-bases/overlays/required/kustomizeconfig.yaml
+transformers:
+# If your deployment does not support privileged containers or if your deployment
+# contains SAS Data Science Programming, comment out the next line
+- sas-bases/overlays/internal-elasticsearch/sysctl-transformer.yaml
+- sas-bases/overlays/required/transformers.yaml
+#- sas-bases/overlays/cas-server/auto-resources/remove-resources.yaml 
+# If your deployment contains SAS Data Science Programming, comment out the next line
+- sas-bases/overlays/internal-elasticsearch/internal-elasticsearch-transformer.yaml
+- site-config/mirror.yaml
+- sas-bases/overlays/security/container-security/remove-seccomp-transformer.yaml
+- site-config/security/container-security/update-fsgroup.yaml
+# Mount information
+# - site-config/{{ DIRECTORY-PATH }}/cas-add-host-mount.yaml
+components:
+- sas-bases/components/crunchydata/internal-platform-postgres 
+#- sas-bases/components/security/core/base/full-stack-tls
+#- sas-bases/components/security/network/route.openshift.io/route/full-stack-tls
+patches:
+- path: site-config/storageclass.yaml 
+  target:
+    kind: PersistentVolumeClaim
+    annotationSelector: sas.com/component-name in (sas-backup-job,sas-data-quality-services,sas-commonfiles,sas-cas-operator,sas-pyconfig)
+# License information
+secretGenerator:
+# - name: sas-license
+#   type: sas.com/license
+#   behavior: merge
+#   files:
+#   - SAS_LICENSE=license.jwt
+- name: sas-image-pull-secrets
+  behavior: replace
+  type: kubernetes.io/dockerconfigjson
+  files:
+  - site-config/.dockerconfigjson
+configMapGenerator:
+- name: ingress-input
+  behavior: merge
+  literals:
+  - INGRESS_HOST=viya4.apps.wocp.woodpeckerindoc.com
+- name: sas-shared-config
+  behavior: merge
+  literals:
+  - SAS_SERVICES_URL=https://viya4.apps.wocp.woodpeckerindoc.com:443 
+  # - SAS_URL_EXTERNAL_VIYA={{ EXTERNAL-PROXY-URL }}
